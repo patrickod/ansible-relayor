@@ -1,11 +1,10 @@
 ---
 
-- name: Check for vulnerable ansible version (CVE-2016-9587)
+- name: Check for min. ansible version requirement
   assert:
     that:
-      - "{{ ansible_version.full | version_compare('2.1.4.0', '>=') }}"
-      - "{{ ansible_version.full | version_compare('2.2.0.0', '!=') }}"
-    msg: "VULNERABLE ansible version DETECTED, please update to v2.1.4/2.2.1 or newer! Exiting."
+      - "{{ ansible_version.full | version_compare('2.3.1.0', '>=') }}"
+    msg: "Your ansible version contains known vulnerabilities (CVE-2017-7481), please update to v2.3.1 or newer! Exiting."
   run_once: true
   delegate_to: 127.0.0.1
   tags:
@@ -25,6 +24,18 @@
       - "tor_ports | length > 0"
       - "tor_ports | length < 3"
     msg: "You can not run more than 2 instances per IP address, please update your tor_ports configuration."
+  tags:
+    - always
+
+- name: Ensure preconditions for tor_dedicatedExitIP are met (number of public IPv4 or IPv6 addresses must be bigger than tor_maxPublicIPs)
+  assert:
+    that:
+      - "tor_available_public_ipv4s|length > tor_maxPublicIPs or tor_available_public_ipv6s|length > tor_maxPublicIPs"
+      - "tor_ExitRelay == True"
+      - "tor_IPv6Exit == True"
+      - "tor_IPv6 == True"
+    msg: "You have to few public IPv4 or IPv6 addresses for the tor_dedicatedExitIP feature (or you did not enable exiting)"
+  when: tor_dedicatedExitIP == True
   tags:
     - always
 

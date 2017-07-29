@@ -1,6 +1,7 @@
 ansible-relayor
 ----------------
 This is an ansible role for tor relay operators.
+An introduction to relayor can be found **[here](https://medium.com/@nusenu/deploying-tor-relays-with-ansible-6612593fa34d)**.
 
 The main focus of this role is to automate as many steps as possible for a tor relay
 operator including key management (OfflineMasterKey).
@@ -17,7 +18,8 @@ Main benefits for a tor relay operator
 - security: compartmentalization: every tor instance is run with a distinct user
 - automatically makes use of IPv6 IPs (if available)
 - automatic tor instance generation (two by default - configurable)
-- easily choose between alpha/non-alpha releases (Debian/Ubuntu only)
+- enables tor's Sandbox feature by default on Debian-based systems
+- easily choose between alpha/non-alpha releases (Debian/Ubuntu/FreeBSD only)
 - easily restore a relay setup (the ansible host becomes a backup location for all keys out of the box)
 - easily choose between exit relay/non-exit relay mode using a single boolean
 - automatic deployment of a [tor exit notice html](https://gitweb.torproject.org/tor.git/plain/contrib/operator-tools/tor-exit-notice.html) page via tor's DirPort (on exits only)
@@ -38,7 +40,7 @@ Control Machine Requirements
 - tor >= 0.2.7
 - python-netaddr package must be installed
 - required commands: openssl, sort, uniq, wc, cut, sed, xargs
-- ansible >= 2.1.4 or >= 2.2.1
+- ansible >= 2.3.1
 
 Managed Node Requirements
 
@@ -47,13 +49,14 @@ Managed Node Requirements
 - static IPv4 address(es)
     - we can use multiple public IPs
     - if you have no public IP we will use a single private IP (and assume NAT)
+- systemd (all Linux-based systems)
 
 Supported Operating Systems
 ---------------------------
 
-- Debian 8 / Debian Testing
+- Debian 8, 9 and Debian Testing
 - CentOS 7 (incl. SELinux support)
-- OpenBSD 6.0
+- OpenBSD 6.1
 - FreeBSD 10.3, 11.0
 - Ubuntu 16.04
 - Fedora 25
@@ -61,8 +64,8 @@ Supported Operating Systems
 Supported Tor Releases
 -----------------------
 - tor >= 0.2.8.x
-- on OpenBSD: tor >= 0.2.7.x
 - on FreeBSD: >= 0.2.8.9**_2**
+- some specific but optional features might require newer tor versions (i.e. `tor_dedicatedExitIP`)
 
 
 Role Variables
@@ -118,9 +121,9 @@ All variables mentioned here are optional.
     - default: not set
 
 * `tor_alpha` boolean
-    - Set to True if you want to enable the Tor alpha version repository.
+    - Set to True if you want to use Tor alpha version releases.
     - Note: This setting does not ensure an installed tor is upgraded to the alpha release.
-    - This setting is supported on Debian/Ubuntu only (ignored on other platforms).
+    - This setting is supported on Debian/Ubuntu/FreeBSD only (ignored on other platforms).
     - default: False
 
 * `tor_ExitRelay` boolean
@@ -157,6 +160,17 @@ All variables mentioned here are optional.
     - enables IPv6 exit traffic
     - only relevant if `tor_ExitRelay` and `tor_IPv6` are True and we have an IPv6 address
     - default: True (unlike tor's default)
+
+* `tor_dedicatedExitIP` boolean
+    - this feature **requires** tor version >= v0.3.0.3-alpha
+    - only relevant for exit relays
+    - automatically configures the [OutboundBindAddressExit](https://www.torproject.org/docs/tor-manual.html.en#OutboundBindAddressExit) tor feature (does not require you to manually specify the IP address to use)
+    - this means tor will establish outbound exit connections on a separate IP(v4/v6) address (different from the IP announced in the consensus)
+    - to make use of this feature you need more public IPv4 or IPv6 addresses than `tor_maxPublicIPs`
+    - if this condition is not met we will abort
+    - all instances on a host will use the same `OutboundBindAddressExit` address
+    - manually specifying the IP address used by `OutboundBindAddressExit` is not supported
+    - default: False
 
 * `tor_enableControlSocket`
     - will create a ControlSocket file named 'controlsocket' in every instance's datadir
